@@ -21,7 +21,7 @@ data class HouseholdProfile(
     val wifiSsid: String = "",
     val wifiPassword: String = "",
     val currentMode: String = "Home",
-    val parentPin: String = "1234",
+    val parentPin: String = "",
     val useBiometrics: Boolean = false,
     val ambientMode: String = "Clock", // "Clock", "Photo", "Dashboard"
     val nightModeEnabled: Boolean = true,
