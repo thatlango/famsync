@@ -303,18 +303,18 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addFamilyMember(name: String, role: String, emoji: String, color: String, bm: Int, bd: Int, by: Int, photo: String?) {
+    fun addFamilyMember(name: String, role: String, emoji: String, color: String, bm: Int, bd: Int, by: Int, photo: String?) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertMember(FamilyMember(name = name, role = role, avatarEmoji = emoji, colorHex = color, birthdayMonth = bm, birthdayDay = bd, birthdayYear = by, photoUri = photo)) }
     }
-    fun updateFamilyMember(member: FamilyMember) { viewModelScope.launch { familyRepo.updateMember(member) } }
+    fun updateFamilyMember(member: FamilyMember) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.updateMember(member) } }
     fun deleteFamilyMember(member: FamilyMember) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteMember(member) } }
 
-    fun addEvent(title: String, desc: String, time: String, cat: String, attendees: String, isKids: Boolean, loc: String) {
+    fun addEvent(title: String, desc: String, time: String, cat: String, attendees: String, isKids: Boolean, loc: String) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertEvent(FamilyEvent(title = title, description = desc, timeString = time, category = cat, attendeeNames = attendees, isKidsActivity = isKids, location = loc, dateEpochMillis = System.currentTimeMillis())) }
     }
     fun deleteEvent(event: FamilyEvent) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteEvent(event) } }
 
-    fun addTask(title: String, desc: String, member: FamilyMember?, pts: Int, cat: String) {
+    fun addTask(title: String, desc: String, member: FamilyMember?, pts: Int, cat: String) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertTask(TaskItem(title = title, description = desc, assignedMemberId = member?.id ?: 0, assignedMemberName = member?.name ?: "Anyone", rewardPoints = pts, category = cat)) }
     }
     fun deleteTask(task: TaskItem) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteTask(task) } }
