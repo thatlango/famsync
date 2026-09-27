@@ -43,13 +43,12 @@ fun OnboardingScreen(
     onCompleteOnboarding: (CityLocation, String, List<DraftMember>, List<String>, String, List<DraftEmergencyContact>) -> Unit
 ) {
     var step by remember { mutableIntStateOf(0) }
-    var familyName by remember { mutableStateOf("Odur Family") }
-    var parentPin by remember { mutableStateOf("1234") }
+    var familyName by remember { mutableStateOf("") }
+    var parentPin by remember { mutableStateOf("") }
     
     val draftMembers = remember {
         mutableStateListOf(
-            DraftMember("Mom", "Parent", "👩", 1, 1, 1990),
-            DraftMember("Dad", "Parent", "👨", 1, 1, 1988)
+            DraftMember("Parent", "Parent", "👤", 1, 1, 1990)
         )
     }
 
@@ -57,7 +56,7 @@ fun OnboardingScreen(
     
     val draftContacts = remember {
         mutableStateListOf(
-            DraftEmergencyContact("Emergency Services", "911", "🚨", "Official Services")
+            DraftEmergencyContact("Emergency contact", "Family", "", "")
         )
     }
 
@@ -88,7 +87,8 @@ fun OnboardingScreen(
                         }
                     } else {
                         Button(
-                            onClick = { onCompleteOnboarding(selectedCity, familyName, draftMembers, priorities, parentPin, draftContacts) },
+                            onClick = { onCompleteOnboarding(selectedCity, familyName.trim(), draftMembers, priorities, parentPin, draftContacts) },
+                            enabled = familyName.isNotBlank() && com.example.util.ParentPin.isValid(parentPin),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth().height(56.dp)
                         ) {
@@ -202,10 +202,12 @@ private fun StepSecurity(pin: String, onPinChange: (String) -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
             value = pin,
-            onValueChange = onPinChange,
-            label = { Text("Parent PIN") },
+            onValueChange = { value -> if (value.length <= 8 && value.all(Char::isDigit)) onPinChange(value) },
+            label = { Text("Parent PIN (4–8 digits)") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
             shape = RoundedCornerShape(12.dp)
         )
+        if (pin == "1234") Text("Choose a PIN other than 1234.", color = MaterialTheme.colorScheme.error)
     }
 }
 
