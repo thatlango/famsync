@@ -10,7 +10,7 @@ import android.util.Base64
 object ParentPin {
     private const val ITERATIONS = 120_000
     private const val KEY_BITS = 256
-    private const val PREFIX = "pbkdf2-sha256"
+    private const val PREFIX = "pbkdf2-sha1"
 
     fun isValid(pin: String): Boolean = pin.length in 4..8 && pin.all(Char::isDigit) && pin != "1234"
 
@@ -39,7 +39,7 @@ object ParentPin {
     private fun derive(pin: String, salt: ByteArray, iterations: Int): ByteArray {
         val spec = PBEKeySpec(pin.toCharArray(), salt, iterations, KEY_BITS)
         return try {
-            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
+            SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1").generateSecret(spec).encoded
         } finally {
             spec.clearPassword()
         }
