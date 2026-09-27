@@ -97,7 +97,11 @@ class MainActivity : ComponentActivity() {
                 val configuration = LocalConfiguration.current
                 val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-                if (!isOnboardingCompleted) {
+                if (isOnboardingCompleted == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (isOnboardingCompleted == false) {
                     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
                     OnboardingScreen(
                         availableCities = viewModel.availableCities,
