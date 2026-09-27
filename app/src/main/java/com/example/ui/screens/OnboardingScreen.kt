@@ -50,11 +50,7 @@ fun OnboardingScreen(
 
     val priorities = remember { mutableStateListOf("Calendar", "Chores", "Meals", "Mood") }
     
-    val draftContacts = remember {
-        mutableStateListOf(
-            DraftEmergencyContact("Emergency contact", "Family", "", "")
-        )
-    }
+    val draftContacts = remember { mutableStateListOf<DraftEmergencyContact>() }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().navigationBarsPadding(),
