@@ -32,6 +32,7 @@ fun MoreScreen(
     onToggleThemeMode: () -> Unit,
     onUpdateHouseholdProfile: (HouseholdProfile) -> Unit,
     onChangeParentPin: (String, String) -> Boolean,
+    onLockParent: () -> Unit,
     onAddFamilyMember: (String, String, String, String, Int, Int, Int, String?) -> Unit,
     onUpdateFamilyMember: (FamilyMember) -> Unit,
     onDeleteFamilyMember: (FamilyMember) -> Unit,
@@ -97,7 +98,7 @@ fun MoreScreen(
                         profile = householdProfile,
                         onUpdateProfile = onUpdateHouseholdProfile,
                         onChangePin = onChangeParentPin,
-                        onBack = { activeSubScreen = null }
+                        onBack = { activeSubScreen = null; onLockParent() }
                     )
                 }
             }
