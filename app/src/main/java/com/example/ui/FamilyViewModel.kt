@@ -93,8 +93,8 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentTab = MutableStateFlow(FamilyTab.HOME)
     val currentTab: StateFlow<FamilyTab> = _currentTab
 
-    private val _isOnboardingCompleted = MutableStateFlow(false)
-    val isOnboardingCompleted: StateFlow<Boolean> = _isOnboardingCompleted
+    private val _isOnboardingCompleted = MutableStateFlow<Boolean?>(null)
+    val isOnboardingCompleted: StateFlow<Boolean?> = _isOnboardingCompleted
 
     val householdProfile: StateFlow<HouseholdProfile?> = familyRepo.householdProfile.stateIn(
         scope = viewModelScope,
