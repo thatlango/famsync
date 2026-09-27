@@ -333,6 +333,7 @@ class MainActivity : ComponentActivity() {
                                             onToggleThemeMode = { viewModel.toggleThemeMode() },
                                             onUpdateHouseholdProfile = { viewModel.updateHouseholdProfile(it) },
                                             onChangeParentPin = { current, next -> viewModel.changeParentPin(current, next) },
+                                            onLockParent = { viewModel.exitParentMode() },
                                             onAddFamilyMember = { n, r, e, c, bm, bd, by, p -> viewModel.addFamilyMember(n, r, e, c, bm, bd, by, p) },
                                             onUpdateFamilyMember = { viewModel.updateFamilyMember(it) },
                                             onDeleteFamilyMember = { viewModel.deleteFamilyMember(it) },
