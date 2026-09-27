@@ -9,6 +9,7 @@ import com.example.data.repository.CityLocation
 import com.example.data.repository.FamilyRepository
 import com.example.data.repository.WeatherInfo
 import com.example.data.repository.WeatherRepository
+import com.example.util.ParentPin
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -92,8 +93,8 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentTab = MutableStateFlow(FamilyTab.HOME)
     val currentTab: StateFlow<FamilyTab> = _currentTab
 
-    private val _isOnboardingCompleted = MutableStateFlow(false)
-    val isOnboardingCompleted: StateFlow<Boolean> = _isOnboardingCompleted
+    private val _isOnboardingCompleted = MutableStateFlow<Boolean?>(null)
+    val isOnboardingCompleted: StateFlow<Boolean?> = _isOnboardingCompleted
 
     val householdProfile: StateFlow<HouseholdProfile?> = familyRepo.householdProfile.stateIn(
         scope = viewModelScope,
@@ -116,6 +117,8 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
 
     private var inactivityJob: Job? = null
     private var parentAutoLockJob: Job? = null
+    private var failedPinAttempts = 0
+    private var pinLockedUntil = 0L
 
     fun selectActiveMember(member: FamilyMember?) {
         _activeMember.value = member
@@ -124,14 +127,32 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun enterParentMode(pin: String): Boolean {
-        val currentPin = householdProfile.value?.parentPin ?: "1234"
-        if (pin == currentPin) {
+        val now = System.currentTimeMillis()
+        if (now < pinLockedUntil) return false
+        val stored = householdProfile.value?.parentPin.orEmpty()
+        val legacyMatch = !stored.startsWith("pbkdf2-") && stored.isNotEmpty() && pin == stored
+        if (ParentPin.verify(pin, stored) || legacyMatch) {
+            failedPinAttempts = 0
             _isParentMode.value = true
             _activeMember.value = null
             resetParentAutoLockTimer()
             return true
         }
+        failedPinAttempts++
+        if (failedPinAttempts >= 5) {
+            pinLockedUntil = now + 60_000L
+            failedPinAttempts = 0
+        }
         return false
+    }
+
+    fun changeParentPin(current: String, next: String): Boolean {
+        if (!_isParentMode.value || !ParentPin.isValid(next)) return false
+        val profile = householdProfile.value ?: return false
+        val legacyMatch = !profile.parentPin.startsWith("pbkdf2-") && current == profile.parentPin
+        if (!ParentPin.verify(current, profile.parentPin) && !legacyMatch) return false
+        viewModelScope.launch { familyRepo.updateHouseholdProfile(profile.copy(parentPin = ParentPin.hash(next))) }
+        return true
     }
 
     fun exitParentMode() {
@@ -185,7 +206,9 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
 
     // 4. DATA ACTIONS
     fun updateHouseholdProfile(profile: HouseholdProfile) {
-        viewModelScope.launch { familyRepo.updateHouseholdProfile(profile) }
+        if (_isParentMode.value && profile.id == 1 && profile.parentPin == householdProfile.value?.parentPin) {
+            viewModelScope.launch { familyRepo.updateHouseholdProfile(profile) }
+        }
     }
 
     fun completeOnboarding(
@@ -196,12 +219,13 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
         parentPin: String,
         emergencyContacts: List<DraftEmergencyContact>
     ) {
+        if (!ParentPin.isValid(parentPin) || familyName.isBlank() || householdProfile.value != null) return
         viewModelScope.launch {
             familyRepo.updateHouseholdProfile(
                 HouseholdProfile(
                     name = familyName,
                     homeLocation = city.name,
-                    parentPin = parentPin
+                    parentPin = ParentPin.hash(parentPin)
                 )
             )
             members.forEach { m ->
@@ -220,7 +244,7 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun reopenOnboarding() { _isOnboardingCompleted.value = false }
+    fun reopenOnboarding() { /* Existing households must be edited in Parent Management. */ }
 
     // 5. DATA FLOWS
     val members: StateFlow<List<FamilyMember>> = familyRepo.members.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -247,6 +271,9 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     val dateString: StateFlow<String> = _dateString
 
     init {
+        viewModelScope.launch {
+            _isOnboardingCompleted.value = familyRepo.householdProfile.first() != null
+        }
         viewModelScope.launch {
             while (true) {
                 val cal = Calendar.getInstance()
@@ -276,21 +303,21 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun addFamilyMember(name: String, role: String, emoji: String, color: String, bm: Int, bd: Int, by: Int, photo: String?) {
+    fun addFamilyMember(name: String, role: String, emoji: String, color: String, bm: Int, bd: Int, by: Int, photo: String?) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertMember(FamilyMember(name = name, role = role, avatarEmoji = emoji, colorHex = color, birthdayMonth = bm, birthdayDay = bd, birthdayYear = by, photoUri = photo)) }
     }
-    fun updateFamilyMember(member: FamilyMember) { viewModelScope.launch { familyRepo.updateMember(member) } }
-    fun deleteFamilyMember(member: FamilyMember) { viewModelScope.launch { familyRepo.deleteMember(member) } }
+    fun updateFamilyMember(member: FamilyMember) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.updateMember(member) } }
+    fun deleteFamilyMember(member: FamilyMember) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteMember(member) } }
 
-    fun addEvent(title: String, desc: String, time: String, cat: String, attendees: String, isKids: Boolean, loc: String) {
+    fun addEvent(title: String, desc: String, time: String, cat: String, attendees: String, isKids: Boolean, loc: String) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertEvent(FamilyEvent(title = title, description = desc, timeString = time, category = cat, attendeeNames = attendees, isKidsActivity = isKids, location = loc, dateEpochMillis = System.currentTimeMillis())) }
     }
-    fun deleteEvent(event: FamilyEvent) { viewModelScope.launch { familyRepo.deleteEvent(event) } }
+    fun deleteEvent(event: FamilyEvent) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteEvent(event) } }
 
-    fun addTask(title: String, desc: String, member: FamilyMember?, pts: Int, cat: String) {
+    fun addTask(title: String, desc: String, member: FamilyMember?, pts: Int, cat: String) { if (!_isParentMode.value) return;
         viewModelScope.launch { familyRepo.insertTask(TaskItem(title = title, description = desc, assignedMemberId = member?.id ?: 0, assignedMemberName = member?.name ?: "Anyone", rewardPoints = pts, category = cat)) }
     }
-    fun deleteTask(task: TaskItem) { viewModelScope.launch { familyRepo.deleteTask(task) } }
+    fun deleteTask(task: TaskItem) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteTask(task) } }
 
     fun addGrocery(name: String, cat: String, qty: String, addedBy: String) {
         viewModelScope.launch { familyRepo.insertGrocery(GroceryItem(name = name, category = cat, quantity = qty, addedByMemberName = addedBy)) }
@@ -308,6 +335,7 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     val rewardStoreItems: StateFlow<List<RewardStoreItem>> = _rewardStoreItems
 
     fun redeemRewardStoreItem(member: FamilyMember, reward: RewardStoreItem): Boolean {
+        if (!_isParentMode.value) return false
         if (member.points >= reward.costStars) {
             viewModelScope.launch { familyRepo.deductMemberPoints(member.id, reward.costStars) }
             return true
@@ -348,7 +376,7 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
     fun addMealPlanItem(d: String, ty: String, t: String, e: String, i: List<String>, c: String) {}
     fun toggleMealCooked(id: Long) {}
     fun addMealIngredientsToGroceryList(i: List<String>, a: String): Int { return 0 }
-    fun deleteMood(m: MoodCheckIn) { viewModelScope.launch { familyRepo.deleteMood(m) } }
+    fun deleteMood(m: MoodCheckIn) { if (!_isParentMode.value) return; viewModelScope.launch { familyRepo.deleteMood(m) } }
     fun clearCompletedGroceries() { viewModelScope.launch { familyRepo.clearCompletedGroceries() } }
 
     fun rotateWeeklyChores() {}

@@ -22,8 +22,13 @@ import com.example.ui.components.SectionHeader
 fun ParentCenterScreen(
     profile: HouseholdProfile?,
     onUpdateProfile: (HouseholdProfile) -> Unit,
+    onChangePin: (String, String) -> Boolean,
     onBack: () -> Unit
 ) {
+    var showPinChange by remember { mutableStateOf(false) }
+    var currentPin by remember { mutableStateOf("") }
+    var newPin by remember { mutableStateOf("") }
+    var pinError by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -56,7 +61,7 @@ fun ParentCenterScreen(
                 FamilyCard {
                     Text("Security & Privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
-                    ParentActionRow(Icons.Default.VpnKey, "Change Parent PIN", "Current: ****") { /* PIN Change */ }
+                    ParentActionRow(Icons.Default.VpnKey, "Change Parent PIN", "Protect parent settings") { showPinChange = true }
                     ParentActionRow(Icons.Default.Fingerprint, "Use Biometrics", "Enable for quick access") { /* Biometrics Toggle */ }
                     ParentActionRow(Icons.Default.NoEncryption, "Content Restrictions", "Set kid-safe boundaries") { /* Restrictions */ }
                 }
@@ -95,6 +100,45 @@ fun ParentCenterScreen(
             }
         }
     }
+
+    if (showPinChange) {
+        AlertDialog(
+            onDismissRequest = { showPinChange = false },
+            title = { Text("Change Parent PIN") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = currentPin,
+                        onValueChange = { if (it.length <= 8 && it.all(Char::isDigit)) currentPin = it },
+                        label = { Text("Current PIN") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                    )
+                    OutlinedTextField(
+                        value = newPin,
+                        onValueChange = { if (it.length <= 8 && it.all(Char::isDigit)) newPin = it },
+                        label = { Text("New PIN (4–8 digits)") },
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation()
+                    )
+                    if (pinError) Text("Check your current PIN and choose a different PIN from 1234.", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = newPin.length in 4..8,
+                    onClick = {
+                        if (onChangePin(currentPin, newPin)) {
+                            showPinChange = false
+                            currentPin = ""
+                            newPin = ""
+                            pinError = false
+                        } else pinError = true
+                    }
+                ) { Text("Save PIN") }
+            },
+            dismissButton = { TextButton(onClick = { showPinChange = false }) { Text("Cancel") } }
+        )
+    }
+
 }
 
 @Composable

@@ -47,6 +47,11 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: FamilyViewModel by viewModels()
 
+    override fun onStop() {
+        viewModel.exitParentMode()
+        super.onStop()
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,7 +97,11 @@ class MainActivity : ComponentActivity() {
                 val configuration = LocalConfiguration.current
                 val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
-                if (!isOnboardingCompleted) {
+                if (isOnboardingCompleted == null) {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else if (isOnboardingCompleted == false) {
                     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
                     OnboardingScreen(
                         availableCities = viewModel.availableCities,
@@ -327,6 +336,8 @@ class MainActivity : ComponentActivity() {
                                             themeMode = themeMode,
                                             onToggleThemeMode = { viewModel.toggleThemeMode() },
                                             onUpdateHouseholdProfile = { viewModel.updateHouseholdProfile(it) },
+                                            onChangeParentPin = { current, next -> viewModel.changeParentPin(current, next) },
+                                            onLockParent = { viewModel.exitParentMode() },
                                             onAddFamilyMember = { n, r, e, c, bm, bd, by, p -> viewModel.addFamilyMember(n, r, e, c, bm, bd, by, p) },
                                             onUpdateFamilyMember = { viewModel.updateFamilyMember(it) },
                                             onDeleteFamilyMember = { viewModel.deleteFamilyMember(it) },
