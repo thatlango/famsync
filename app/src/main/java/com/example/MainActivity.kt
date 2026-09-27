@@ -47,6 +47,11 @@ class MainActivity : ComponentActivity() {
 
     private val viewModel: FamilyViewModel by viewModels()
 
+    override fun onStop() {
+        viewModel.exitParentMode()
+        super.onStop()
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
