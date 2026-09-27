@@ -130,7 +130,8 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
         val now = System.currentTimeMillis()
         if (now < pinLockedUntil) return false
         val stored = householdProfile.value?.parentPin.orEmpty()
-        if (ParentPin.verify(pin, stored)) {
+        val legacyMatch = !stored.startsWith("pbkdf2-") && stored.isNotEmpty() && pin == stored
+        if (ParentPin.verify(pin, stored) || legacyMatch) {
             failedPinAttempts = 0
             _isParentMode.value = true
             _activeMember.value = null
@@ -143,6 +144,15 @@ class FamilyViewModel(application: Application) : AndroidViewModel(application) 
             failedPinAttempts = 0
         }
         return false
+    }
+
+    fun changeParentPin(current: String, next: String): Boolean {
+        if (!_isParentMode.value || !ParentPin.isValid(next)) return false
+        val profile = householdProfile.value ?: return false
+        val legacyMatch = !profile.parentPin.startsWith("pbkdf2-") && current == profile.parentPin
+        if (!ParentPin.verify(current, profile.parentPin) && !legacyMatch) return false
+        viewModelScope.launch { familyRepo.updateHouseholdProfile(profile.copy(parentPin = ParentPin.hash(next))) }
+        return true
     }
 
     fun exitParentMode() {
