@@ -1,0 +1,7 @@
+{
+  "name": "Family Hub",
+  "description": "Family schedule for events, kids activities, weather, mood check-in, shared grocery list, and task tracker.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
