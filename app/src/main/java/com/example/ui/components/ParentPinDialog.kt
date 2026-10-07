@@ -35,8 +35,8 @@ fun ParentPinDialog(
                 Spacer(modifier = Modifier.height(24.dp))
                 OutlinedTextField(
                     value = pin,
-                    onValueChange = { if (it.length <= 4) pin = it },
-                    label = { Text("4-Digit PIN") },
+                    onValueChange = { if (it.length <= 8 && it.all(Char::isDigit)) pin = it },
+                    label = { Text("Parent PIN") },
                     shape = RoundedCornerShape(12.dp),
                     visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     modifier = Modifier.width(160.dp),
@@ -56,7 +56,7 @@ fun ParentPinDialog(
                         error = true
                     }
                 },
-                enabled = pin.length == 4
+                enabled = pin.length in 4..8
             ) {
                 Text("Unlock")
             }

@@ -43,23 +43,14 @@ fun OnboardingScreen(
     onCompleteOnboarding: (CityLocation, String, List<DraftMember>, List<String>, String, List<DraftEmergencyContact>) -> Unit
 ) {
     var step by remember { mutableIntStateOf(0) }
-    var familyName by remember { mutableStateOf("Odur Family") }
-    var parentPin by remember { mutableStateOf("1234") }
+    var familyName by remember { mutableStateOf("") }
+    var parentPin by remember { mutableStateOf("") }
     
-    val draftMembers = remember {
-        mutableStateListOf(
-            DraftMember("Mom", "Parent", "👩", 1, 1, 1990),
-            DraftMember("Dad", "Parent", "👨", 1, 1, 1988)
-        )
-    }
+    val draftMembers = remember { mutableStateListOf<DraftMember>() }
 
     val priorities = remember { mutableStateListOf("Calendar", "Chores", "Meals", "Mood") }
     
-    val draftContacts = remember {
-        mutableStateListOf(
-            DraftEmergencyContact("Emergency Services", "911", "🚨", "Official Services")
-        )
-    }
+    val draftContacts = remember { mutableStateListOf<DraftEmergencyContact>() }
 
     Scaffold(
         modifier = Modifier.fillMaxSize().navigationBarsPadding(),
@@ -88,7 +79,8 @@ fun OnboardingScreen(
                         }
                     } else {
                         Button(
-                            onClick = { onCompleteOnboarding(selectedCity, familyName, draftMembers, priorities, parentPin, draftContacts) },
+                            onClick = { onCompleteOnboarding(selectedCity, familyName.trim(), draftMembers, priorities, parentPin, draftContacts) },
+                            enabled = familyName.isNotBlank() && draftMembers.any { it.role == "Parent" } && com.example.util.ParentPin.isValid(parentPin),
                             shape = RoundedCornerShape(16.dp),
                             modifier = Modifier.fillMaxWidth().height(56.dp)
                         ) {
@@ -149,9 +141,13 @@ private fun StepHousehold(name: String, onNameChange: (String) -> Unit, city: St
 }
 
 @Composable
-private fun StepMembers(members: List<DraftMember>) {
+private fun StepMembers(members: MutableList<DraftMember>) {
+    var showAdd by remember { mutableStateOf(false) }
+    var name by remember { mutableStateOf("") }
+    var role by remember { mutableStateOf("Child") }
     Column {
         Text("👨‍👩‍👧‍👦 Family Members", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text("Add at least one parent. You can add more members later.", style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(16.dp))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(members) { m ->
@@ -159,20 +155,49 @@ private fun StepMembers(members: List<DraftMember>) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AvatarChip("", m.avatarEmoji, false, 40) {}
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(m.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                             Text(m.role, style = MaterialTheme.typography.labelSmall)
+                        }
+                        IconButton(onClick = { members.remove(m) }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Remove ${m.name}")
                         }
                     }
                 }
             }
             item {
-                OutlinedButton(onClick = {}, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
+                OutlinedButton(onClick = { showAdd = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
                     Icon(Icons.Default.Add, null)
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text("Add Member")
                 }
             }
         }
+    }
+    if (showAdd) {
+        AlertDialog(
+            onDismissRequest = { showAdd = false },
+            title = { Text("Add family member") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name") })
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Parent", "Child").forEach { option ->
+                            FilterChip(selected = role == option, onClick = { role = option }, label = { Text(option) })
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(enabled = name.isNotBlank(), onClick = {
+                    members.add(DraftMember(name.trim(), role, if (role == "Parent") "🧑" else "🧒", 0, 0, 0))
+                    name = ""
+                    role = "Child"
+                    showAdd = false
+                }) { Text("Add") }
+            },
+            dismissButton = { TextButton(onClick = { showAdd = false }) { Text("Cancel") } }
+        )
     }
 }
 
@@ -202,10 +227,12 @@ private fun StepSecurity(pin: String, onPinChange: (String) -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
             value = pin,
-            onValueChange = onPinChange,
-            label = { Text("Parent PIN") },
+            onValueChange = { value -> if (value.length <= 8 && value.all(Char::isDigit)) onPinChange(value) },
+            label = { Text("Parent PIN (4–8 digits)") },
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
             shape = RoundedCornerShape(12.dp)
         )
+        if (pin == "1234") Text("Choose a PIN other than 1234.", color = MaterialTheme.colorScheme.error)
     }
 }
 
